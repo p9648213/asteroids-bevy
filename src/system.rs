@@ -1,5 +1,5 @@
 use bevy::color::Color;
-use bevy::prelude::Entity;
+use bevy::prelude::{BuildChildren, Children, Rectangle};
 use bevy::sprite::{ColorMaterial, MeshMaterial2d};
 use bevy::{
     asset::{Assets, Handle},
@@ -42,7 +42,15 @@ pub fn add_player(
     let thrust = Thrust(false);
     let velocity = Velocity(Vec3::ZERO);
 
-    commands.spawn((
+    let thrust_mesh = Mesh2d(meshes.add(Rectangle::new(0.3, 0.5)));
+    let thrust_mesh_material = MeshMaterial2d(NORMAL_SHIP_COLOR_ID);
+    let thrust_mesh_transform = Transform::default().with_translation(Vec3::new(0.0, -0.3, -0.1));
+
+    let ship_thruster = commands
+        .spawn((thrust_mesh, thrust_mesh_material, thrust_mesh_transform))
+        .id();
+
+    let mut ship = commands.spawn((
         Position(Vec3::ZERO),
         ship_mesh,
         ship_mesh_material,
@@ -52,21 +60,30 @@ pub fn add_player(
         thrust,
         velocity,
     ));
+
+    ship.add_child(ship_thruster);
 }
 
 pub fn draw_ship(
-    mut query: Query<(&mut Transform, &Position, &Thrust, Entity)>,
+    mut query: Query<(&mut Transform, &Position, &Thrust, &Children)>,
     mut commands: Commands,
 ) {
-    for (mut tranforms, position, thrust, entity) in &mut query {
+    for (mut tranforms, position, thrust, children) in &mut query {
         tranforms.translation.x = position.0.x;
         tranforms.translation.y = position.0.y;
 
-        let mut entity_commands = commands.entity(entity);
+        let thrusters = children
+            .first()
+            .expect("Couldn't find the first child, which should be thrusters");
+
         if thrust.0 {
-            entity_commands.insert(MeshMaterial2d(THRUSTING_SHIP_COLOR_ID));
+            commands
+                .entity(*thrusters)
+                .insert(MeshMaterial2d(THRUSTING_SHIP_COLOR_ID));
         } else {
-            entity_commands.insert(MeshMaterial2d(NORMAL_SHIP_COLOR_ID));
+            commands
+                .entity(*thrusters)
+                .insert(MeshMaterial2d(NORMAL_SHIP_COLOR_ID));
         }
     }
 }
